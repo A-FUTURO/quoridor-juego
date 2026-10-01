@@ -4,7 +4,99 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>El Laberinto de Juanita - Quoridor</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f9;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 5px;
+    }
+
+    .subtitle {
+      color: #7f8c8d;
+      margin-top: 0;
+    }
+
+    .status-panel {
+      margin: 15px 0;
+      text-align: center;
+      font-size: 1.1rem;
+    }
+
+    .controls {
+      margin-bottom: 15px;
+    }
+
+    button {
+      padding: 10px 15px;
+      margin: 0 5px;
+      border: none;
+      background-color: #3498db;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button.active {
+      background-color: #2c3e50;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 45px 10px) 45px;
+      grid-template-rows: repeat(8, 45px 10px) 45px;
+      background-color: #8d6e63;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .cell {
+      background-color: #d7ccc8;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .cell:hover {
+      background-color: #bcaaa4;
+    }
+
+    .player-1 {
+      width: 30px;
+      height: 30px;
+      background-color: #2ecc71;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    .player-2 {
+      width: 30px;
+      height: 30px;
+      background-color: #e74c3c;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+
+    .gap-h, .gap-v, .intersection {
+      background-color: #a1887f;
+    }
+
+    .wall-active {
+      background-color: #e67e22 !important;
+    }
+  </style>
 </head>
 <body>
   <h1>El Laberinto de Juanita</h1>
@@ -26,6 +118,96 @@
 
   <div id="board" class="board"></div>
 
-  <script src="app.js"></script>
+  <script>
+    let turn = 1; // 1 o 2
+    let mode = 'move';
+    let p1Pos = { r: 0, c: 4 };
+    let p2Pos = { r: 8, c: 4 };
+    let p1Barriers = 10;
+    let p2Barriers = 10;
+
+    const board = document.getElementById('board');
+
+    function setMode(newMode) {
+      mode = newMode;
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      if(mode === 'move') document.getElementById('btn-move').classList.add('active');
+      if(mode === 'wall-h') document.getElementById('btn-wall-h').classList.add('active');
+      if(mode === 'wall-v') document.getElementById('btn-wall-v').classList.add('active');
+    }
+
+    function renderBoard() {
+      board.innerHTML = '';
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          cell.onclick = () => handleCellClick(r, c);
+
+          if (p1Pos.r === r && p1Pos.c === c) {
+            const p1 = document.createElement('div');
+            p1.className = 'player-1';
+            cell.appendChild(p1);
+          } else if (p2Pos.r === r && p2Pos.c === c) {
+            const p2 = document.createElement('div');
+            p2.className = 'player-2';
+            cell.appendChild(p2);
+          }
+
+          board.appendChild(cell);
+
+          if (c < 8) {
+            const gapV = document.createElement('div');
+            gapV.className = 'gap-v';
+            board.appendChild(gapV);
+          }
+        }
+
+        if (r < 8) {
+          for (let c = 0; c < 9; c++) {
+            const gapH = document.createElement('div');
+            gapH.className = 'gap-h';
+            board.appendChild(gapH);
+
+            if (c < 8) {
+              const inter = document.createElement('div');
+              inter.className = 'intersection';
+              board.appendChild(inter);
+            }
+          }
+        }
+      }
+    }
+
+    function handleCellClick(r, c) {
+      if (mode === 'move') {
+        const currentPos = turn === 1 ? p1Pos : p2Pos;
+        const dist = Math.abs(currentPos.r - r) + Math.abs(currentPos.c - c);
+        
+        if (dist === 1) {
+          if (turn === 1) p1Pos = { r, c };
+          else p2Pos = { r, c };
+          
+          checkWin();
+          switchTurn();
+          renderBoard();
+        }
+      }
+    }
+
+    function switchTurn() {
+      turn = turn === 1 ? 2 : 1;
+      document.getElementById('turn-display').innerText = `Turno: Jugador ${turn} (${turn === 1 ? 'Verde' : 'Rojo'})`;
+    }
+
+    function checkWin() {
+      if (p1Pos.r === 8) alert('¡Jugador 1 ha ganado!');
+      if (p2Pos.r === 0) alert('¡Jugador 2 ha ganado!');
+    }
+
+    renderBoard();
+  </script>
 </body>
 </html>
