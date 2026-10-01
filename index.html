@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>El Laberinto de Juanita - Quoridor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>El Laberinto de Juanita</h1>
+  <p class="subtitle">Mueve tu ficha o coloca barreras para bloquear al rival.</p>
+  
+  <div class="status-panel">
+    <div id="turn-display">Turno: Jugador 1 (Verde)</div>
+    <div class="barriers-count">
+      <span>Barreras J1: <strong id="b1-count">10</strong></span> | 
+      <span>Barreras J2: <strong id="b2-count">10</strong></span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btn-move" class="active" onclick="setMode('move')">Mover Ficha</button>
+    <button id="btn-wall-h" onclick="setMode('wall-h')">Barrera Horizontal</button>
+    <button id="btn-wall-v" onclick="setMode('wall-v')">Barrera Vertical</button>
+  </div>
+
+  <div id="board" class="board"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
