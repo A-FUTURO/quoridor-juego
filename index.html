@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Quoridor 3D - CEIP Julián Nieto Tapia</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(135deg, #12141d 0%, #08090d 100%);
+      color: #ffffff;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* PANTALLA DE INICIO Y CONFIGURACIÓN */
+    #start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(14, 16, 23, 0.96);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .start-logo-wrapper {
+      background: #ffffff;
+      padding: 20px 30px;
+      border-radius: 24px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 280px;
+      width: 100%;
+    }
+
+    .start-logo-wrapper svg {
+      width: 100%;
+      height: auto;
+      max-height: 160px;
+    }
+
+    h1.game-title {
+      font-size: 2.2rem;
+      color: #00d2ff;
+      text-shadow: 0 0 15px rgba(0,210,255,0.4);
+      margin-bottom: 5px;
+      letter-spacing: 2px;
+      font-weight: 800;
+    }
+
+    p.subtitle {
+      color: #a0aec0;
+      font-size: 1.05rem;
+      margin-bottom: 25px;
+    }
+
+    .mode-selection {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 25px;
+      justify-content: center;
+    }
+
+    .btn-mode {
+      background: #2d3748;
+      border: 2px solid #4a5568;
+      color: white;
+      padding: 14px 22px;
+      font-size: 1.1rem;
+      border-radius: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: bold;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 140px;
+    }
+
+    .btn-mode span {
+      font-size: 0.8rem;
+      font-weight: normal;
+      color: #cbd5e0;
+      margin-top: 5px;
+    }
+
+    .btn-mode:hover, .btn-mode.active {
+      background: #00d2ff;
+      color: #0e1017;
+      border-color: #00d2ff;
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0,210,255,0.4);
+    }
+
+    .btn-mode:hover span, .btn-mode.active span {
+      color: #1a202c;
+    }
+
+    .btn-start {
+      background: #48bb78;
+      color: white;
+      border: none;
+      padding: 15px 50px;
+      font-size: 1.3rem;
+      font-weight: bold;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 5px 20px rgba(72,187,120,0.4);
+      transition: all 0.2s ease;
+      margin-top: 10px;
+    }
+
+    .btn-start:hover {
+      background: #38a169;
+      transform: scale(1.05);
+    }
+
+    /* ENCABEZADO SUPERIOR CON LOGO INTEGRADO */
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: rgba(23, 25, 35, 0.9);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      z-index: 10;
+    }
+
+    .header-logo-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #ffffff;
+      padding: 6px 14px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .header-logo-box svg {
+      height: 38px;
+      width: auto;
+    }
+
+    .header-title-box h2 {
+      font-size: 1.1rem;
+      color: #00d2ff;
+      letter-spacing: 1px;
+    }
+
+    #turn-indicator {
+      font-size: 1.05rem;
+      font-weight: bold;
+      padding: 8px 18px;
+      border-radius: 20px;
+      background: #2d3748;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    /* CONTENEDOR DE ESCENA 3D */
+    #canvas-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* CONTROLES E INTERFAZ INFERIOR */
+    #ui-panel {
+      padding: 12px 15px;
+      background: rgba(23, 25, 35, 0.92);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .barriers-status {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      font-size: 0.95rem;
+    }
+
+    .player-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+    }
+
+    .controls-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .ctrl-btn {
+      padding: 10px 18px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: #2d3748;
+      color: white;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+    }
+
+    .ctrl-btn.active {
+      background: #3182ce;
+      border-color: #63b3ed;
+      box-shadow: 0 0 12px rgba(49,130,206,0.6);
+    }
+
+    /* VENTANA POPUP VICTORIA */
+    #win-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    #win-modal.active {
+      display: flex;
+    }
+
+    .win-box {
+      background: #1a202c;
+      padding: 35px;
+      border-radius: 20px;
+      border: 2px solid #00d2ff;
+      box-shadow: 0 0 35px rgba(0,210,255,0.4);
+      max-width: 90%;
+      width: 380px;
+    }
+
+    .win-title {
+      font-size: 2rem;
+      color: #48bb78;
+      margin-bottom: 10px;
+    }
+
+    .win-msg {
+      font-size: 1.15rem;
+      margin-bottom: 20px;
+      color: #e2e8f0;
+    }
+
+    #confetti-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <!-- PANTALLA INICIAL CON LOGO CEIP JULIÁN NIETO TAPIA -->
+  <div id="start-screen">
+    <div class="start-logo-wrapper">
+      <svg viewBox="0 0 320 280" xmlns="http://www.w3.org/2000/svg">
+        <!-- Letra J (Turquesa / Cian) -->
+        <path d="M 125,50 C 105,45 85,80 85,130 C 85,200 120,225 105,225 C 90,225 75,190 85,150 C 88,138 90,105 105,75 Z" fill="#20b2aa"/>
+        <ellipse cx="118" cy="38" rx="14" ry="18" fill="#20b2aa"/>
+
+        <!-- Letra N (Amarilla) -->
+        <path d="M 125,75 C 130,85 145,185 145,190 C 145,190 125,120 125,90 C 125,80 135,70 145,75 C 155,80 160,120 160,180 C 160,185 130,195 125,190 Z" fill="#ffd700"/>
+
+        <!-- Letra T (Magenta / Rosa) -->
+        <path d="M 140,110 Q 200,105 240,120 Q 180,125 175,170 C 170,200 220,130 225,115 Q 180,90 220,70 Q 160,75 140,110 Z" fill="#e6007e"/>
+
+        <!-- Texto curvo inferior CEIP JULIÁN NIETO TAPIA -->
+        <path id="text-path" d="M 50,220 A 120,120 0 0,0 270,220" fill="none" stroke="none"/>
+        <text font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="20" fill="#1f2937" letter-spacing="1.5">
+          <textPath href="#text-path" startOffset="50%" text-anchor="middle">
+            CEIP JULIÁN NIETO TAPIA
+          </textPath>
+        </text>
+      </svg>
+    </div>
+
+    <h1 class="game-title">QUORIDOR 3D</h1>
+    <p class="subtitle">Selecciona la modalidad de juego</p>
+
+    <div class="mode-selection">
+      <div class="btn-mode active" id="mode-2p" onclick="selectGameMode(2)">
+        2 JUGADORES
+        <span>10 Barreras / jug.</span>
+      </div>
+      <div class="btn-mode" id="mode-4p" onclick="selectGameMode(4)">
+        4 JUGADORES
+        <span>5 Barreras / jug.</span>
+      </div>
+    </div>
+
+    <button class="btn-start" onclick="startGame()">¡EMPEZAR A JUGAR!</button>
+  </div>
+
+  <!-- ENCABEZADO SUPERIOR -->
+  <div id="header">
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <div class="header-logo-box">
+        <svg viewBox="0 0 320 280" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 125,50 C 105,45 85,80 85,130 C 85,200 120,225 105,225 C 90,225 75,190 85,150 C 88,138 90,105 105,75 Z" fill="#20b2aa"/>
+          <ellipse cx="118" cy="38" rx="14" ry="18" fill="#20b2aa"/>
+          <path d="M 125,75 C 130,85 145,185 145,190 C 145,190 125,120 125,90 C 125,80 135,70 145,75 C 155,80 160,120 160,180 C 160,185 130,195 125,190 Z" fill="#ffd700"/>
+          <path d="M 140,110 Q 200,105 240,120 Q 180,125 175,170 C 170,200 220,130 225,115 Q 180,90 220,70 Q 160,75 140,110 Z" fill="#e6007e"/>
+          <path id="header-text-path" d="M 50,220 A 120,120 0 0,0 270,220" fill="none"/>
+          <text font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="20" fill="#1f2937">
+            <textPath href="#header-text-path" startOffset="50%" text-anchor="middle">CEIP JULIÁN NIETO TAPIA</textPath>
+          </text>
+        </svg>
+      </div>
+      <div class="header-title-box">
+        <h2>Quoridor 3D</h2>
+      </div>
+    </div>
+    
+    <div id="turn-indicator">Turno: Jugador 1</div>
+  </div>
+
+  <!-- CONTENEDOR 3D -->
+  <div id="canvas-container"></div>
+
+  <!-- CONTROLES E INTERFAZ -->
+  <div id="ui-panel">
+    <div class="barriers-status" id="barriers-container"></div>
+
+    <div class="controls-group">
+      <button class="ctrl-btn active" id="btn-move" onclick="setActionMode('move')">
+        🏃 Mover Ficha
+      </button>
+      <button class="ctrl-btn" id="btn-wall-h" onclick="setActionMode('wall-h')">
+        ▬ Barrera Horizontal
+      </button>
+      <button class="ctrl-btn" id="btn-wall-v" onclick="setActionMode('wall-v')">
+        ▮ Barrera Vertical
+      </button>
+    </div>
+  </div>
+
+  <!-- POPUP VICTORIA -->
+  <div id="win-modal">
+    <canvas id="confetti-canvas"></canvas>
+    <div class="win-box">
+      <div class="win-title">🏆 ¡VICTORIA!</div>
+      <div class="win-msg" id="win-message">¡El Jugador 1 ha ganado la partida!</div>
+      <button class="btn-start" onclick="resetGame()">Jugar de Nuevo</button>
+    </div>
+  </div>
+
+  <script>
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+
+    function initAudio() {
+      if (!audioCtx) audioCtx = new AudioContext();
+    }
+
+    function playSound(type) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      const now = audioCtx.currentTime;
+
+      if (type === 'move') {
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+      } else if (type === 'wall') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.2);
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      } else if (type === 'error') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(120, now);
+        osc.frequency.linearRampToValueAtTime(80, now + 0.25);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+    }
+
+    function playVictoryMelody() {
+      if (!audioCtx) return;
+      const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+      notes.forEach((freq, index) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const startTime = audioCtx.currentTime + index * 0.12;
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(0.3, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+        osc.start(startTime);
+        osc.stop(startTime + 0.4);
+      });
+    }
+
+    let numPlayers = 2; // Únicamente 2 o 4 jugadores
+    let currentPlayer = 0;
+    let actionModes = 'move';
+    let players = [];
+    let placedWalls = [];
+    
+    const PLAYER_COLORS = [
+      { name: 'Verde (J1)', hex: 0x2ecc71, css: '#2ecc71' },
+      { name: 'Rojo (J2)', hex: 0xe74c3c, css: '#e74c3c' },
+      { name: 'Azul (J3)', hex: 0x3498db, css: '#3498db' },
+      { name: 'Amarillo (J4)', hex: 0xf1c40f, css: '#f1c40f' }
+    ];
+
+    function selectGameMode(mode) {
+      if (mode !== 2 && mode !== 4) return;
+      numPlayers = mode;
+      document.getElementById('mode-2p').classList.toggle('active', mode === 2);
+      document.getElementById('mode-4p').classList.toggle('active', mode === 4);
+    }
+
+    /* ESCENA 3D Y OBJETOS */
+    let scene, camera, renderer, controls;
+    let boardGroup, pawnsGroup, wallsGroup;
+    let previewWallMesh = null;
+    const BOARD_SIZE = 9;
+    const CELL_SIZE = 1.0;
+    const GAP = 0.2;
+    const STEP = CELL_SIZE + GAP;
+    const OFFSET = (BOARD_SIZE - 1) * STEP / 2;
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      container.innerHTML = '';
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0e1017);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, 12, 12);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2.1;
+
+      // Iluminación
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(10, 20, 10);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+      scene.add(dirLight);
+
+      // Grupos de elementos
+      boardGroup = new THREE.Group();
+      pawnsGroup = new THREE.Group();
+      wallsGroup = new THREE.Group();
+      scene.add(boardGroup);
+      scene.add(pawnsGroup);
+      scene.add(wallsGroup);
+
+      createBoard3D();
+      createPreviewMesh();
+      
+      window.addEventListener('resize', onWindowResize);
+      setupInteractions();
+      animate();
+    }
+
+    function createBoard3D() {
+      const baseGeo = new THREE.BoxGeometry(11, 0.4, 11);
+      const baseMat = new THREE.MeshStandardMaterial({ color: 0x1f2430, roughness: 0.8 });
+      const base = new THREE.Mesh(baseGeo, baseMat);
+      base.position.y = -0.25;
+      base.receiveShadow = true;
+      boardGroup.add(base);
+
+      const cellGeo = new THREE.BoxGeometry(CELL_SIZE, 0.1, CELL_SIZE);
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          const cellMat = new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.5 });
+          const cell = new THREE.Mesh(cellGeo, cellMat);
+          cell.position.set(c * STEP - OFFSET, 0, r * STEP - OFFSET);
+          cell.receiveShadow = true;
+          cell.userData = { r, c, type: 'cell' };
+          boardGroup.add(cell);
+        }
+      }
+    }
+
+    /* BARRERA FANTASMA DE PREVISUALIZACIÓN */
+    function createPreviewMesh() {
+      const geo = new THREE.BoxGeometry(CELL_SIZE * 2 + GAP, 0.4, 0.15);
+      const mat = new THREE.MeshBasicMaterial({ 
+        color: 0x2ecc71, 
+        transparent: true, 
+        opacity: 0.6 
+      });
+      previewWallMesh = new THREE.Mesh(geo, mat);
+      previewWallMesh.visible = false;
+      scene.add(previewWallMesh);
+    }
+
+    /* INICIALIZACIÓN DE PARTIDA (SÓLO 2 O 4 JUGADORES) */
+    function startGame() {
+      initAudio();
+      document.getElementById('start-screen').style.display = 'none';
+
+      const initialBarriers = numPlayers === 2 ? 10 : 5;
+
+      if (numPlayers === 2) {
+        players = [
+          { id: 0, r: 8, c: 4, targetRow: 0, barriers: initialBarriers },
+          { id: 1, r: 0, c: 4, targetRow: 8, barriers: initialBarriers }
+        ];
+      } else {
+        players = [
+          { id: 0, r: 8, c: 4, targetRow: 0, barriers: initialBarriers },
+          { id: 1, r: 0, c: 4, targetRow: 8, barriers: initialBarriers },
+          { id: 2, r: 4, c: 0, targetCol: 8, barriers: initialBarriers },
+          { id: 3, r: 4, c: 8, targetCol: 0, barriers: initialBarriers }
+        ];
+      }
+
+      currentPlayer = 0;
+      placedWalls = [];
+
+      init3D();
+      renderPawns();
+      updateUI();
+    }
+
+    function renderPawns() {
+      while (pawnsGroup.children.length > 0) pawnsGroup.remove(pawnsGroup.children[0]);
+
+      players.forEach((p, idx) => {
+        const geo = new THREE.CylinderGeometry(0.3, 0.4, 0.8, 16);
+        const mat = new THREE.MeshStandardMaterial({ color: PLAYER_COLORS[idx].hex, roughness: 0.3 });
+        const pawn = new THREE.Mesh(geo, mat);
+        pawn.position.set(p.c * STEP - OFFSET, 0.45, p.r * STEP - OFFSET);
+        pawn.castShadow = true;
+        pawnsGroup.add(pawn);
+      });
+    }
+
+    /* REGLAS DE VALIDACIÓN DE BARRERAS Y MOVIMIENTOS */
+    function isWallAt(r, c, type) {
+      return placedWalls.some(w => w.r === r && w.c === c && w.type === type);
+    }
+
+    function isBlocked(r1, c1, r2, c2) {
+      if (r1 === r2) { // Movimiento Horizontal
+        const minC = Math.min(c1, c2);
+        if (isWallAt(r1, minC, 'v') || isWallAt(r1 - 1, minC, 'v')) return true;
+      } else if (c1 === c2) { // Movimiento Vertical
+        const minR = Math.min(r1, r2);
+        if (isWallAt(minR, c1, 'h') || isWallAt(minR, c1 - 1, 'h')) return true;
+      }
+      return false;
+    }
+
+    function getValidMoves(p) {
+      const moves = [];
+      const dirs = [
+        { r: -1, c: 0 }, { r: 1, c: 0 },
+        { r: 0, c: -1 }, { r: 0, c: 1 }
+      ];
+
+      dirs.forEach(d => {
+        const nr = p.r + d.r;
+        const nc = p.c + d.c;
+
+        if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+          if (!isBlocked(p.r, p.c, nr, nc)) {
+            const opponent = players.find(other => other.r === nr && other.c === nc);
+            if (!opponent) {
+              moves.push({ r: nr, c: nc });
+            } else {
+              // Salto simple frontal
+              const jumpR = nr + d.r;
+              const jumpC = nc + d.c;
+
+              if (jumpR >= 0 && jumpR < BOARD_SIZE && jumpC >= 0 && jumpC < BOARD_SIZE &&
+                  !isBlocked(nr, nc, jumpR, jumpC) &&
+                  !players.some(other => other.r === jumpR && other.c === jumpC)) {
+                moves.push({ r: jumpR, c: jumpC });
+              } else {
+                // Salto diagonal en caso de obstáculo
+                const diagDirs = d.r !== 0 
+                  ? [{ r: 0, c: -1 }, { r: 0, c: 1 }] 
+                  : [{ r: -1, c: 0 }, { r: 1, c: 0 }];
+
+                diagDirs.forEach(dd => {
+                  const diagR = nr + dd.r;
+                  const diagC = nc + dd.c;
+                  if (diagR >= 0 && diagR < BOARD_SIZE && diagC >= 0 && diagC < BOARD_SIZE &&
+                      !isBlocked(nr, nc, diagR, diagC) &&
+                      !players.some(other => other.r === diagR && other.c === diagC)) {
+                    moves.push({ r: diagR, c: diagC });
+                  }
+                });
+              }
+            }
+          }
+        }
+      });
+
+      return moves;
+    }
+
+    function hasPath(player) {
+      const queue = [{ r: player.r, c: player.c }];
+      const visited = new Set();
+      visited.add(`${player.r},${player.c}`);
+
+      while (queue.length > 0) {
+        const curr = queue.shift();
+
+        if (player.targetRow !== undefined && curr.r === player.targetRow) return true;
+        if (player.targetCol !== undefined && curr.c === player.targetCol) return true;
+
+        const dirs = [
+          { r: -1, c: 0 }, { r: 1, c: 0 },
+          { r: 0, c: -1 }, { r: 0, c: 1 }
+        ];
+
+        for (let d of dirs) {
+          const nr = curr.r + d.r;
+          const nc = curr.c + d.c;
+
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
+            if (!visited.has(`${nr},${nc}`) && !isBlocked(curr.r, curr.c, nr, nc)) {
+              visited.add(`${nr},${nc}`);
+              queue.push({ r: nr, c: nc });
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    /* VALIDACIÓN RIGUROSA DE CRUCE DE BARRERAS */
+    function canPlaceWall(r, c, type) {
+      if (r < 0 || r >= 8 || c < 0 || c >= 8) return false;
+
+      // 1. Impedir cruce directo o superposición en el centro de la intersección (evitar la cruz)
+      if (isWallAt(r, c, 'h') || isWallAt(r, c, 'v')) return false;
+
+      // 2. Impedir solapamiento en la misma dirección
+      if (type === 'h') {
+        if (isWallAt(r, c - 1, 'h') || isWallAt(r, c + 1, 'h')) return false;
+      } else if (type === 'v') {
+        if (isWallAt(r - 1, c, 'v') || isWallAt(r + 1, c, 'v')) return false;
+      }
+
+      // 3. Comprobación BFS: asegurar camino disponible para todos
+      placedWalls.push({ r, c, type });
+      const valid = players.every(p => hasPath(p));
+      placedWalls.pop();
+
+      return valid;
+    }
+
+    /* EVENTOS Y RAYCASTING PARA INTERACCIÓN */
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function setupInteractions() {
+      const container = document.getElementById('canvas-container');
+
+      container.addEventListener('pointermove', (e) => {
+        if (actionModes === 'move') {
+          if (previewWallMesh) previewWallMesh.visible = false;
+          return;
+        }
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+        const target = new THREE.Vector3();
+        if (raycaster.ray.intersectPlane(plane, target)) {
+          const c = Math.floor((target.x + OFFSET + STEP / 2) / STEP);
+          const r = Math.floor((target.z + OFFSET + STEP / 2) / STEP);
+
+          if (r >= 0 && r < 8 && c >= 0 && c < 8) {
+            const type = actionModes === 'wall-h' ? 'h' : 'v';
+            const isValid = canPlaceWall(r, c, type) && players[currentPlayer].barriers > 0;
+
+            if (type === 'h') {
+              previewWallMesh.geometry.dispose();
+              previewWallMesh.geometry = new THREE.BoxGeometry(CELL_SIZE * 2 + GAP, 0.4, 0.15);
+            } else {
+              previewWallMesh.geometry.dispose();
+              previewWallMesh.geometry = new THREE.BoxGeometry(0.15, 0.4, CELL_SIZE * 2 + GAP);
+            }
+
+            const posX = (c * STEP - OFFSET) + STEP / 2;
+            const posZ = (r * STEP - OFFSET) + STEP / 2;
+            previewWallMesh.position.set(posX, 0.2, posZ);
+
+            // Indicación en Verde (Válida) o Rojo (Inválida)
+            previewWallMesh.material.color.setHex(isValid ? 0x2ecc71 : 0xe74c3c);
+            previewWallMesh.visible = true;
+          } else {
+            previewWallMesh.visible = false;
+          }
+        }
+      });
+
+      container.addEventListener('pointerdown', (e) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        if (actionModes === 'move') {
+          const intersects = raycaster.intersectObjects(boardGroup.children);
+          if (intersects.length > 0) {
+            const data = intersects[0].object.userData;
+            if (data && data.type === 'cell') {
+              tryMovePawn(data.r, data.c);
+            }
+          }
+        } else {
+          const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+          const target = new THREE.Vector3();
+          if (raycaster.ray.intersectPlane(plane, target)) {
+            const c = Math.floor((target.x + OFFSET + STEP / 2) / STEP);
+            const r = Math.floor((target.z + OFFSET + STEP / 2) / STEP);
+            
+            if (r >= 0 && r < 8 && c >= 0 && c < 8) {
+              const type = actionModes === 'wall-h' ? 'h' : 'v';
+              tryPlaceWall(r, c, type);
+            }
+          }
+        }
+      });
+    }
+
+    function tryMovePawn(r, c) {
+      const p = players[currentPlayer];
+      const validMoves = getValidMoves(p);
+
+      const isValid = validMoves.some(m => m.r === r && m.c === c);
+
+      if (isValid) {
+        p.r = r;
+        p.c = c;
+        playSound('move');
+        renderPawns();
+        checkWinCondition();
+        nextTurn();
+      } else {
+        playSound('error');
+      }
+    }
+
+    function tryPlaceWall(r, c, type) {
+      const p = players[currentPlayer];
+      if (p.barriers <= 0) {
+        playSound('error');
+        return;
+      }
+
+      if (canPlaceWall(r, c, type)) {
+        placedWalls.push({ r, c, type });
+        p.barriers--;
+        playSound('wall');
+        addWallMesh(r, c, type);
+        nextTurn();
+      } else {
+        playSound('error');
+      }
+    }
+
+    function addWallMesh(r, c, type) {
+      const geo = type === 'h' 
+        ? new THREE.BoxGeometry(CELL_SIZE * 2 + GAP, 0.4, 0.15)
+        : new THREE.BoxGeometry(0.15, 0.4, CELL_SIZE * 2 + GAP);
+      
+      const mat = new THREE.MeshStandardMaterial({ color: 0xd69e2e, roughness: 0.4 });
+      const wall = new THREE.Mesh(geo, mat);
+
+      const posX = (c * STEP - OFFSET) + STEP / 2;
+      const posZ = (r * STEP - OFFSET) + STEP / 2;
+
+      wall.position.set(posX, 0.2, posZ);
+      wall.castShadow = true;
+      wallsGroup.add(wall);
+    }
+
+    function nextTurn() {
+      currentPlayer = (currentPlayer + 1) % numPlayers;
+      setActionMode('move');
+      updateUI();
+    }
+
+    function checkWinCondition() {
+      const p = players[currentPlayer];
+      let won = false;
+
+      if (p.targetRow !== undefined && p.r === p.targetRow) won = true;
+      if (p.targetCol !== undefined && p.c === p.targetCol) won = true;
+
+      if (won) {
+        playVictoryMelody();
+        document.getElementById('win-message').innerText = `¡El ${PLAYER_COLORS[currentPlayer].name} ha ganado!`;
+        document.getElementById('win-modal').classList.add('active');
+        startConfetti();
+      }
+    }
+
+    function setActionMode(mode) {
+      actionModes = mode;
+      document.getElementById('btn-move').classList.toggle('active', mode === 'move');
+      document.getElementById('btn-wall-h').classList.toggle('active', mode === 'wall-h');
+      document.getElementById('btn-wall-v').classList.toggle('active', mode === 'wall-v');
+
+      if (mode === 'move' && previewWallMesh) {
+        previewWallMesh.visible = false;
+      }
+    }
+
+    function updateUI() {
+      const turnEl = document.getElementById('turn-indicator');
+      turnEl.innerText = `Turno: ${PLAYER_COLORS[currentPlayer].name}`;
+      turnEl.style.color = PLAYER_COLORS[currentPlayer].css;
+
+      const container = document.getElementById('barriers-container');
+      container.innerHTML = '';
+
+      players.forEach((p, idx) => {
+        const badge = document.createElement('div');
+        badge.className = 'player-badge';
+        badge.innerHTML = `
+          <div class="dot" style="background:${PLAYER_COLORS[idx].css}"></div>
+          J${idx + 1}: <strong>${p.barriers} barreras</strong>
+        `;
+        container.appendChild(badge);
+      });
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('canvas-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function resetGame() {
+      document.getElementById('win-modal').classList.remove('active');
+      document.getElementById('start-screen').style.display = 'flex';
+    }
+
+    /* EFECTO DE CONFETI EN VICTORIA */
+    function startConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const pieces = Array.from({ length: 120 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        size: Math.random() * 10 + 5,
+        color: ['#f1c40f', '#e74c3c', '#2ecc71', '#3498db', '#e6007e'][Math.floor(Math.random() * 5)],
+        speed: Math.random() * 3 + 2
+      }));
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pieces.forEach(p => {
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+          p.y += p.speed;
+          if (p.y > canvas.height) p.y = -10;
+        });
+        if (document.getElementById('win-modal').classList.contains('active')) {
+          requestAnimationFrame(draw);
+        }
+      }
+      draw();
+    }
+  </script>
+</body>
+</html>
