@@ -3,211 +3,683 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>El Laberinto de Juanita - Quoridor</title>
+  <title>El Laberinto de Juanita - Quoridor 3D</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f6f9;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 0;
-      padding: 20px;
+      font-family: 'Outfit', sans-serif;
+      user-select: none;
+      overflow: hidden;
     }
-
-    h1 {
-      color: #2c3e50;
-      margin-bottom: 5px;
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
-
-    .subtitle {
-      color: #7f8c8d;
-      margin-top: 0;
+    .custom-shadow {
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
     }
-
-    .status-panel {
-      margin: 15px 0;
-      text-align: center;
-      font-size: 1.1rem;
-    }
-
-    .controls {
-      margin-bottom: 15px;
-    }
-
-    button {
-      padding: 10px 15px;
-      margin: 0 5px;
-      border: none;
-      background-color: #3498db;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    button.active {
-      background-color: #2c3e50;
-    }
-
-    .board {
-      display: grid;
-      grid-template-columns: repeat(8, 45px 10px) 45px;
-      grid-template-rows: repeat(8, 45px 10px) 45px;
-      background-color: #8d6e63;
-      padding: 10px;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-    }
-
-    .cell {
-      background-color: #d7ccc8;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    .cell:hover {
-      background-color: #bcaaa4;
-    }
-
-    .player-1 {
-      width: 30px;
-      height: 30px;
-      background-color: #2ecc71;
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-    }
-
-    .player-2 {
-      width: 30px;
-      height: 30px;
-      background-color: #e74c3c;
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-    }
-
-    .gap-h, .gap-v, .intersection {
-      background-color: #a1887f;
-    }
-
-    .wall-active {
-      background-color: #e67e22 !important;
+    /* Estilos de notificaciones flotantes */
+    #toast {
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
     }
   </style>
 </head>
-<body>
-  <h1>El Laberinto de Juanita</h1>
-  <p class="subtitle">Mueve tu ficha o coloca barreras para bloquear al rival.</p>
-  
-  <div class="status-panel">
-    <div id="turn-display">Turno: Jugador 1 (Verde)</div>
-    <div class="barriers-count">
-      <span>Barreras J1: <strong id="b1-count">10</strong></span> | 
-      <span>Barreras J2: <strong id="b2-count">10</strong></span>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen relative">
+
+  <div id="canvas-container" class="absolute inset-0 w-full h-full z-0 cursor-grab active:cursor-grabbing"></div>
+
+  <!-- Encabezado y Estado de Juego -->
+  <header class="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-[92%] max-w-4xl pointer-events-none">
+    <div class="glass-panel rounded-2xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 pointer-events-auto shadow-2xl">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/40">
+          <i class="fa-solid fa-cube text-amber-400 text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-extrabold tracking-wide bg-gradient-to-r from-amber-400 via-emerald-400 to-indigo-400 bg-clip-text text-transparent">
+            El Laberinto de Juanita
+          </h1>
+          <p class="text-xs text-slate-400 font-medium">Quoridor Estratégico 3D</p>
+        </div>
+      </div>
+
+      <!-- Turno e Indicadores -->
+      <div class="flex items-center gap-6 bg-slate-900/60 px-5 py-2 rounded-xl border border-slate-800">
+        <div id="p1-status" class="flex items-center gap-2 transition-all duration-300 opacity-100">
+          <div class="w-4 h-4 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50"></div>
+          <span class="text-xs md:text-sm font-semibold">Jugador 1</span>
+          <span id="p1-barriers-count" class="ml-1 text-xs px-2 py-0.5 rounded-full bg-slate-800 text-emerald-400 border border-emerald-500/30 font-bold">10 🧱</span>
+        </div>
+
+        <div class="h-6 w-px bg-slate-800"></div>
+
+        <div id="p2-status" class="flex items-center gap-2 transition-all duration-300 opacity-40">
+          <div class="w-4 h-4 rounded-full bg-rose-500 shadow-lg shadow-rose-500/50"></div>
+          <span class="text-xs md:text-sm font-semibold">Jugador 2</span>
+          <span id="p2-barriers-count" class="ml-1 text-xs px-2 py-0.5 rounded-full bg-slate-800 text-rose-400 border border-rose-500/30 font-bold">10 🧱</span>
+        </div>
+      </div>
+
+      <button id="btn-reset" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition flex items-center gap-2">
+        <i class="fa-solid fa-rotate-right"></i> Reiniciar
+      </button>
+    </div>
+  </header>
+
+  <!-- Panel de Selección de Modos y Acciones -->
+  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-[92%] max-w-lg pointer-events-none">
+    <div class="glass-panel p-2.5 rounded-2xl flex justify-center items-center gap-2 pointer-events-auto custom-shadow">
+      <button id="mode-move" class="flex-1 py-3 px-4 rounded-xl font-bold text-xs md:text-sm transition flex items-center justify-center gap-2 bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20 active:scale-95">
+        <i class="fa-solid fa-chess-knight text-base"></i> Mover Ficha
+      </button>
+      <button id="mode-wall-h" class="flex-1 py-3 px-4 rounded-xl font-bold text-xs md:text-sm transition flex items-center justify-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 active:scale-95">
+        <i class="fa-solid fa-grip-lines text-base"></i> Barrera H
+      </button>
+      <button id="mode-wall-v" class="flex-1 py-3 px-4 rounded-xl font-bold text-xs md:text-sm transition flex items-center justify-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 active:scale-95">
+        <i class="fa-solid fa-grip-lines-vertical text-base"></i> Barrera V
+      </button>
     </div>
   </div>
 
-  <div class="controls">
-    <button id="btn-move" class="active" onclick="setMode('move')">Mover Ficha</button>
-    <button id="btn-wall-h" onclick="setMode('wall-h')">Barrera Horizontal</button>
-    <button id="btn-wall-v" onclick="setMode('wall-v')">Barrera Vertical</button>
+  <!-- Toast / Mensajes de alerta -->
+  <div id="toast" class="absolute top-24 left-1/2 -translate-x-1/2 z-20 pointer-events-none opacity-0 translate-y-[-10px]">
+    <div id="toast-bg" class="glass-panel px-5 py-2.5 rounded-xl border flex items-center gap-2 shadow-2xl">
+      <i id="toast-icon" class="fa-solid fa-circle-info text-amber-400"></i>
+      <span id="toast-text" class="text-xs md:text-sm font-semibold text-slate-200"></span>
+    </div>
   </div>
 
-  <div id="board" class="board"></div>
+  <!-- Modal de Victoria -->
+  <div id="win-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden">
+    <div class="glass-panel p-8 rounded-3xl max-w-md w-[90%] text-center border border-amber-500/30 custom-shadow animate-bounce-short">
+      <div class="w-20 h-20 bg-gradient-to-tr from-amber-400 to-amber-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-xl shadow-amber-500/30">
+        <i class="fa-solid fa-trophy text-4xl text-slate-950"></i>
+      </div>
+      <h2 id="win-title" class="text-2xl font-extrabold mb-2 text-white">¡Victoria!</h2>
+      <p id="win-desc" class="text-slate-300 text-sm mb-6">El jugador ha logrado cruzar el laberinto de Juanita con éxito.</p>
+      <button id="btn-win-restart" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-extrabold rounded-xl shadow-lg shadow-emerald-500/30 hover:opacity-90 active:scale-95 transition">
+        Jugar de Nuevo
+      </button>
+    </div>
+  </div>
 
   <script>
-    let turn = 1; // 1 o 2
-    let mode = 'move';
-    let p1Pos = { r: 0, c: 4 };
-    let p2Pos = { r: 8, c: 4 };
+    /* Configuración de Estado del Juego */
+    const BOARD_SIZE = 9;
+    let turn = 1; // 1: Verde, 2: Rojo
+    let activeMode = 'move'; // 'move', 'wall-h', 'wall-v'
+    
+    let p1Pos = { r: 8, c: 4 }; // Comienza abajo
+    let p2Pos = { r: 0, c: 4 }; // Comienza arriba
     let p1Barriers = 10;
     let p2Barriers = 10;
 
-    const board = document.getElementById('board');
+    // Matriz de paredes [tipo][r][c] -> boolean (h: 8x8, v: 8x8)
+    const walls = {
+      h: Array.from({ length: 8 }, () => Array(8).fill(false)),
+      v: Array.from({ length: 8 }, () => Array(8).fill(false))
+    };
 
-    function setMode(newMode) {
-      mode = newMode;
-      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
-      if(mode === 'move') document.getElementById('btn-move').classList.add('active');
-      if(mode === 'wall-h') document.getElementById('btn-wall-h').classList.add('active');
-      if(mode === 'wall-v') document.getElementById('btn-wall-v').classList.add('active');
+    /* variables Three.js */
+    let scene, camera, renderer, controls;
+    let boardGroup;
+    const cells3D = []; // 9x9
+    const slotsH3D = []; // 8x8
+    const slotsV3D = []; // 8x8
+    let p1Mesh, p2Mesh;
+    const placedWallsGroup = new THREE.Group();
+
+    // Materiales 3D
+    const materials = {
+      boardBase: new THREE.MeshStandardMaterial({ color: 0x1e1b18, roughness: 0.8 }),
+      cellNormal: new THREE.MeshStandardMaterial({ color: 0x3d352e, roughness: 0.4 }),
+      cellHover: new THREE.MeshStandardMaterial({ color: 0x5a4d41, roughness: 0.3 }),
+      cellValid: new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.2, emissive: 0x059669, emissiveIntensity: 0.5 }),
+      player1: new THREE.MeshStandardMaterial({ color: 0x10b981, roughness: 0.2, metalness: 0.1 }),
+      player2: new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.2, metalness: 0.1 }),
+      slotNormal: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.05 }),
+      slotHoverValid: new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xd97706, emissiveIntensity: 0.8 }),
+      slotHoverInvalid: new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xd97706, emissiveIntensity: 0.8 }),
+      wallPlaced: new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3, metalness: 0.2 })
+    };
+
+    function init3D() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x090d16);
+      scene.fog = new THREE.FogExp2(0x090d16, 0.035);
+
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 16, 15);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxPolarAngle = Math.PI / 2.1;
+      controls.minDistance = 8;
+      controls.maxDistance = 25;
+      controls.target.set(0, 0, 0);
+
+      // Luces
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xfff5ea, 1.2);
+      dirLight.position.set(10, 20, 10);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.camera.near = 0.5;
+      dirLight.shadow.camera.far = 50;
+      dirLight.shadow.camera.left = -10;
+      dirLight.shadow.camera.right = 10;
+      dirLight.shadow.camera.top = 10;
+      dirLight.shadow.camera.bottom = -10;
+      scene.add(dirLight);
+
+      const bluePointLight = new THREE.PointLight(0x38bdf8, 0.8, 20);
+      bluePointLight.position.set(-10, 5, -10);
+      scene.add(bluePointLight);
+
+      createBoard3D();
+      createPlayers3D();
+
+      scene.add(placedWallsGroup);
+
+      window.addEventListener('resize', onWindowResize);
+      setupInteractions();
+      updateValidMovesHighlights();
     }
 
-    function renderBoard() {
-      board.innerHTML = '';
-      for (let r = 0; r < 9; r++) {
-        for (let c = 0; c < 9; c++) {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.dataset.r = r;
-          cell.dataset.c = c;
-          cell.onclick = () => handleCellClick(r, c);
+    function createBoard3D() {
+      boardGroup = new THREE.Group();
 
-          if (p1Pos.r === r && p1Pos.c === c) {
-            const p1 = document.createElement('div');
-            p1.className = 'player-1';
-            cell.appendChild(p1);
-          } else if (p2Pos.r === r && p2Pos.c === c) {
-            const p2 = document.createElement('div');
-            p2.className = 'player-2';
-            cell.appendChild(p2);
-          }
+      // Base del tablero
+      const baseGeo = new THREE.BoxGeometry(11.2, 0.4, 11.2);
+      const baseMesh = new THREE.Mesh(baseGeo, materials.boardBase);
+      baseMesh.position.y = -0.25;
+      baseMesh.receiveShadow = true;
+      boardGroup.add(baseMesh);
 
-          board.appendChild(cell);
+      const cellSize = 1.0;
+      const gap = 0.2;
+      const offset = (BOARD_SIZE * cellSize + (BOARD_SIZE - 1) * gap) / 2 - cellSize / 2;
 
-          if (c < 8) {
-            const gapV = document.createElement('div');
-            gapV.className = 'gap-v';
-            board.appendChild(gapV);
-          }
+      // Crear Casillas (9x9)
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        cells3D[r] = [];
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          const cellGeo = new THREE.BoxGeometry(cellSize, 0.2, cellSize);
+          const cellMesh = new THREE.Mesh(cellGeo, materials.cellNormal.clone());
+          
+          const x = c * (cellSize + gap) - offset;
+          const z = r * (cellSize + gap) - offset;
+          cellMesh.position.set(x, 0, z);
+          cellMesh.receiveShadow = true;
+          cellMesh.userData = { type: 'cell', r, c };
+
+          boardGroup.add(cellMesh);
+          cells3D[r][c] = cellMesh;
         }
+      }
 
-        if (r < 8) {
-          for (let c = 0; c < 9; c++) {
-            const gapH = document.createElement('div');
-            gapH.className = 'gap-h';
-            board.appendChild(gapH);
+      // Crear Ranuras de Barreras Horizontales y Verticales (8x8)
+      for (let r = 0; r < 8; r++) {
+        slotsH3D[r] = [];
+        slotsV3D[r] = [];
+        for (let c = 0; c < 8; c++) {
+          const x = c * (cellSize + gap) - offset + (cellSize + gap) / 2;
+          const z = r * (cellSize + gap) - offset + (cellSize + gap) / 2;
 
-            if (c < 8) {
-              const inter = document.createElement('div');
-              inter.className = 'intersection';
-              board.appendChild(inter);
+          // Ranura Horizontal
+          const slotHGeo = new THREE.BoxGeometry(cellSize * 2 + gap, 0.25, gap);
+          const slotHMesh = new THREE.Mesh(slotHGeo, materials.slotNormal);
+          slotHMesh.position.set(x, 0.02, z - (cellSize + gap) / 2);
+          slotHMesh.userData = { type: 'wall-h', r, c };
+          boardGroup.add(slotHMesh);
+          slotsH3D[r][c] = slotHMesh;
+
+          // Ranura Vertical
+          const slotVGeo = new THREE.BoxGeometry(gap, 0.25, cellSize * 2 + gap);
+          const slotVMesh = new THREE.Mesh(slotVGeo, materials.slotNormal);
+          slotVMesh.position.set(x - (cellSize + gap) / 2, 0.02, z);
+          slotVMesh.userData = { type: 'wall-v', r, c };
+          boardGroup.add(slotVMesh);
+          slotsV3D[r][c] = slotVMesh;
+        }
+      }
+
+      scene.add(boardGroup);
+    }
+
+    function createPlayers3D() {
+      const p1Group = new THREE.Group();
+      const p2Group = new THREE.Group();
+
+      const bodyGeo = new THREE.CylinderGeometry(0.3, 0.4, 0.7, 32);
+      const headGeo = new THREE.SphereGeometry(0.25, 32, 32);
+
+      const p1Body = new THREE.Mesh(bodyGeo, materials.player1);
+      const p1Head = new THREE.Mesh(headGeo, materials.player1);
+      p1Head.position.y = 0.5;
+      p1Group.add(p1Body, p1Head);
+
+      const p2Body = new THREE.Mesh(bodyGeo, materials.player2);
+      const p2Head = new THREE.Mesh(headGeo, materials.player2);
+      p2Head.position.y = 0.5;
+      p2Group.add(p2Body, p2Head);
+
+      p1Group.traverse(child => { if(child.isMesh) child.castShadow = true; });
+      p2Group.traverse(child => { if(child.isMesh) child.castShadow = true; });
+
+      p1Mesh = p1Group;
+      p2Mesh = p2Group;
+
+      scene.add(p1Mesh);
+      scene.add(p2Mesh);
+
+      updatePlayerPositions3D(false);
+    }
+
+    function getCellPosition3D(r, c) {
+      const cellSize = 1.0;
+      const gap = 0.2;
+      const offset = (BOARD_SIZE * cellSize + (BOARD_SIZE - 1) * gap) / 2 - cellSize / 2;
+      return {
+        x: c * (cellSize + gap) - offset,
+        y: 0.45,
+        z: r * (cellSize + gap) - offset
+      };
+    }
+
+    function updatePlayerPositions3D(animate = true) {
+      const pos1 = getCellPosition3D(p1Pos.r, p1Pos.c);
+      const pos2 = getCellPosition3D(p2Pos.r, p2Pos.c);
+
+      if (animate) {
+        new TWEEN.Tween(p1Mesh.position).to(pos1, 300).easing(TWEEN.Easing.Cubic.Out).start();
+        new TWEEN.Tween(p2Mesh.position).to(pos2, 300).easing(TWEEN.Easing.Cubic.Out).start();
+      } else {
+        p1Mesh.position.set(pos1.x, pos1.y, pos1.z);
+        p2Mesh.position.set(pos2.x, pos2.y, pos2.z);
+      }
+    }
+
+    function isMoveBlocked(r1, c1, r2, c2) {
+      // Movimiento vertical
+      if (c1 === c2) {
+        const minR = Math.min(r1, r2);
+        // Verificar barrera horizontal
+        if (c1 < 8 && walls.h[minR][c1]) return true;
+        if (c1 > 0 && walls.h[minR][c1 - 1]) return true;
+      }
+      // Movimiento horizontal
+      if (r1 === r2) {
+        const minC = Math.min(c1, c2);
+        // Verificar barrera vertical
+        if (r1 < 8 && walls.v[r1][minC]) return true;
+        if (r1 > 0 && walls.v[r1 - 1][minC]) return true;
+      }
+      return false;
+    }
+
+    function getValidMoves(pos, opponentPos) {
+      const moves = [];
+      const dirs = [
+        { r: -1, c: 0 }, { r: 1, c: 0 },
+        { r: 0, c: -1 }, { r: 0, c: 1 }
+      ];
+
+      for (const d of dirs) {
+        const nr = pos.r + d.r;
+        const nc = pos.c + d.c;
+
+        if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9) {
+          if (!isMoveBlocked(pos.r, pos.c, nr, nc)) {
+            // Si el oponente está ahí, verificar salto
+            if (nr === opponentPos.r && nc === opponentPos.c) {
+              const nnr = nr + d.r;
+              const nnc = nc + d.c;
+              if (nnr >= 0 && nnr < 9 && nnc >= 0 && nnc < 9 && !isMoveBlocked(nr, nc, nnr, nnc)) {
+                moves.push({ r: nnr, c: nnc });
+              }
+            } else {
+              moves.push({ r: nr, c: nc });
             }
           }
         }
       }
+      return moves;
     }
 
-    function handleCellClick(r, c) {
-      if (mode === 'move') {
-        const currentPos = turn === 1 ? p1Pos : p2Pos;
-        const dist = Math.abs(currentPos.r - r) + Math.abs(currentPos.c - c);
-        
-        if (dist === 1) {
-          if (turn === 1) p1Pos = { r, c };
-          else p2Pos = { r, c };
-          
-          checkWin();
-          switchTurn();
-          renderBoard();
+    // BFS para validar si un jugador tiene camino hacia su meta
+    function hasPathToGoal(startPos, targetRow) {
+      const queue = [startPos];
+      const visited = Array.from({ length: 9 }, () => Array(9).fill(false));
+      visited[startPos.r][startPos.c] = true;
+
+      while (queue.length > 0) {
+        const curr = queue.shift();
+        if (curr.r === targetRow) return true;
+
+        const dirs = [
+          { r: -1, c: 0 }, { r: 1, c: 0 },
+          { r: 0, c: -1 }, { r: 0, c: 1 }
+        ];
+
+        for (const d of dirs) {
+          const nr = curr.r + d.r;
+          const nc = curr.c + d.c;
+
+          if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9 && !visited[nr][nc]) {
+            if (!isMoveBlocked(curr.r, curr.c, nr, nc)) {
+              visited[nr][nc] = true;
+              queue.push({ r: nr, c: nc });
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    function canPlaceWall(type, r, c) {
+      if (r < 0 || r >= 8 || c < 0 || c >= 8) return false;
+
+      // Comprobar si ya existe una barrera que se solape
+      if (walls.h[r][c] || walls.v[r][c]) return false;
+      if (type === 'h' && (walls.h[r][c] || (c > 0 && walls.h[r][c - 1]) || (c < 7 && walls.h[r][c + 1]))) return false;
+      if (type === 'v' && (walls.v[r][c] || (r > 0 && walls.v[r - 1][c]) || (r < 7 && walls.v[r + 1][c]))) return false;
+
+      // Colocar temporalmente y probar si hay camino con BFS
+      walls[type][r][c] = true;
+      const p1HasPath = hasPathToGoal(p1Pos, 0);
+      const p2HasPath = hasPathToGoal(p2Pos, 8);
+      walls[type][r][c] = false; // revertir
+
+      return p1HasPath && p2HasPath;
+    }
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let hoveredObject = null;
+
+    function setupInteractions() {
+      const container = document.getElementById('canvas-container');
+
+      container.addEventListener('mousemove', (e) => {
+        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(boardGroup.children);
+
+        if (hoveredObject && hoveredObject.userData.type === 'cell') {
+          if (!hoveredObject.userData.isValidMove) {
+            hoveredObject.material = materials.cellNormal;
+          }
+        }
+
+        resetSlotsHighlight();
+
+        if (intersects.length > 0) {
+          const obj = intersects[0].object;
+          hoveredObject = obj;
+
+          if (activeMode === 'move' && obj.userData.type === 'cell') {
+            if (!obj.userData.isValidMove) {
+              obj.material = materials.cellHover;
+            }
+          } else if (activeMode.startsWith('wall') && obj.userData.type === activeMode) {
+            const { r, c } = obj.userData;
+            const type = activeMode === 'wall-h' ? 'h' : 'v';
+            const isValid = canPlaceWall(type, r, c);
+            
+            obj.material = isValid ? materials.slotHoverValid : materials.slotHoverInvalid;
+          }
+        } else {
+          hoveredObject = null;
+        }
+      });
+
+      container.addEventListener('click', () => {
+        if (!hoveredObject) return;
+
+        const data = hoveredObject.userData;
+
+        if (activeMode === 'move' && data.type === 'cell' && data.isValidMove) {
+          executeMove(data.r, data.c);
+        } else if (activeMode.startsWith('wall') && data.type === activeMode) {
+          const type = activeMode === 'wall-h' ? 'h' : 'v';
+          const currentBarriers = turn === 1 ? p1Barriers : p2Barriers;
+
+          if (currentBarriers <= 0) {
+            showToast('¡No te quedan barreras disponibles!', 'fa-triangle-exclamation', 'amber');
+            return;
+          }
+
+          if (canPlaceWall(type, data.r, data.c)) {
+            executePlaceWall(type, data.r, data.c);
+          } else {
+            showToast('¡No puedes bloquear totalmente el camino!', 'fa-ban', 'rose');
+          }
+        }
+      });
+
+      // Botones de interfaz
+      document.getElementById('mode-move').addEventListener('click', () => setMode('move'));
+      document.getElementById('mode-wall-h').addEventListener('click', () => setMode('wall-h'));
+      document.getElementById('mode-wall-v').addEventListener('click', () => setMode('wall-v'));
+      document.getElementById('btn-reset').addEventListener('click', resetGame);
+      document.getElementById('btn-win-restart').addEventListener('click', resetGame);
+    }
+
+    function setMode(mode) {
+      activeMode = mode;
+      const btnMove = document.getElementById('mode-move');
+      const btnWallH = document.getElementById('mode-wall-h');
+      const btnWallV = document.getElementById('mode-wall-v');
+
+      const activeClass = 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20';
+      const inactiveClass = 'bg-slate-800/80 hover:bg-slate-700 text-slate-300';
+
+      btnMove.className = `flex-1 py-3 px-4 rounded-xl font-bold text-xs md:text-sm transition flex items-center justify-center gap-2 ${mode === 'move' ? activeClass : inactiveClass}`;
+      btnWallH.className = `flex-1 py-3 px-4 rounded-xl font-bold text-xs md:text-sm transition flex items-center justify-center gap-2 ${mode === 'wall-h' ? activeClass : inactiveClass}`;
+      btnWallV.className = `flex-1 py-3 px-4 rounded-xl font-bold text-xs md:text-sm transition flex items-center justify-center gap-2 ${mode === 'wall-v' ? activeClass : inactiveClass}`;
+
+      updateValidMovesHighlights();
+    }
+
+    function resetSlotsHighlight() {
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          slotsH3D[r][c].material = materials.slotNormal;
+          slotsV3D[r][c].material = materials.slotNormal;
         }
       }
     }
 
+    function updateValidMovesHighlights() {
+      // Limpiar casillas
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          cells3D[r][c].material = materials.cellNormal;
+          cells3D[r][c].userData.isValidMove = false;
+        }
+      }
+
+      if (activeMode === 'move') {
+        const currPos = turn === 1 ? p1Pos : p2Pos;
+        const oppPos = turn === 1 ? p2Pos : p1Pos;
+        const validMoves = getValidMoves(currPos, oppPos);
+
+        for (const m of validMoves) {
+          cells3D[m.r][m.c].material = materials.cellValid;
+          cells3D[m.r][m.c].userData.isValidMove = true;
+        }
+      }
+    }
+
+    function executeMove(r, c) {
+      if (turn === 1) p1Pos = { r, c };
+      else p2Pos = { r, c };
+
+      updatePlayerPositions3D(true);
+
+      // Comprobar victoria
+      if ((turn === 1 && r === 0) || (turn === 2 && r === 8)) {
+        showWinModal(turn);
+        return;
+      }
+
+      switchTurn();
+    }
+
+    function executePlaceWall(type, r, c) {
+      walls[type][r][c] = true;
+
+      if (turn === 1) p1Barriers--;
+      else p2Barriers--;
+
+      // Renderizar la barrera 3D colocada
+      const cellSize = 1.0;
+      const gap = 0.2;
+      const offset = (BOARD_SIZE * cellSize + (BOARD_SIZE - 1) * gap) / 2 - cellSize / 2;
+      const x = c * (cellSize + gap) - offset + (cellSize + gap) / 2;
+      const z = r * (cellSize + gap) - offset + (cellSize + gap) / 2;
+
+      const wallGeo = type === 'h' 
+        ? new THREE.BoxGeometry(cellSize * 2 + gap, 0.4, gap * 0.8)
+        : new THREE.BoxGeometry(gap * 0.8, 0.4, cellSize * 2 + gap);
+
+      const wallMesh = new THREE.Mesh(wallGeo, materials.wallPlaced);
+      wallMesh.position.set(
+        type === 'h' ? x : x - (cellSize + gap) / 2,
+        0.2,
+        type === 'h' ? z - (cellSize + gap) / 2 : z
+      );
+      wallMesh.castShadow = true;
+      placedWallsGroup.add(wallMesh);
+
+      // Efecto animación al colocar
+      wallMesh.scale.set(0.1, 0.1, 0.1);
+      new TWEEN.Tween(wallMesh.scale).to({ x: 1, y: 1, z: 1 }, 200).easing(TWEEN.Easing.Back.Out).start();
+
+      updateUI();
+      switchTurn();
+    }
+
     function switchTurn() {
       turn = turn === 1 ? 2 : 1;
-      document.getElementById('turn-display').innerText = `Turno: Jugador ${turn} (${turn === 1 ? 'Verde' : 'Rojo'})`;
+      updateUI();
+      setMode('move'); // Volver a mover ficha por defecto
     }
 
-    function checkWin() {
-      if (p1Pos.r === 8) alert('¡Jugador 1 ha ganado!');
-      if (p2Pos.r === 0) alert('¡Jugador 2 ha ganado!');
+    function updateUI() {
+      document.getElementById('p1-barriers-count').innerText = `${p1Barriers} 🧱`;
+      document.getElementById('p2-barriers-count').innerText = `${p2Barriers} 🧱`;
+
+      const p1Status = document.getElementById('p1-status');
+      const p2Status = document.getElementById('p2-status');
+
+      if (turn === 1) {
+        p1Status.style.opacity = '1';
+        p2Status.style.opacity = '0.4';
+      } else {
+        p1Status.style.opacity = '0.4';
+        p2Status.style.opacity = '1';
+      }
+
+      updateValidMovesHighlights();
     }
 
-    renderBoard();
+    function showToast(text, icon = 'fa-circle-info', color = 'amber') {
+      const toast = document.getElementById('toast');
+      const toastText = document.getElementById('toast-text');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastText.innerText = text;
+      toastIcon.className = `fa-solid ${icon} text-${color}-400`;
+
+      toast.style.opacity = '1';
+      toast.style.transform = 'translate(-50%, 0)';
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translate(-50%, -10px)';
+      }, 2500);
+    }
+
+    function showWinModal(winner) {
+      const modal = document.getElementById('win-modal');
+      const title = document.getElementById('win-title');
+      const desc = document.getElementById('win-desc');
+
+      title.innerText = `¡Ganador: Jugador ${winner}!`;
+      desc.innerText = winner === 1 
+        ? '¡El Jugador 1 (Verde) ha completado el laberinto con éxito!' 
+        : '¡El Jugador 2 (Rojo) ha completado el laberinto con éxito!';
+
+      modal.classList.remove('hidden');
+    }
+
+    function resetGame() {
+      turn = 1;
+      p1Pos = { r: 8, c: 4 };
+      p2Pos = { r: 0, c: 4 };
+      p1Barriers = 10;
+      p2Barriers = 10;
+
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          walls.h[r][c] = false;
+          walls.v[r][c] = false;
+        }
+      }
+
+      // Limpiar paredes de la escena 3D
+      while (placedWallsGroup.children.length > 0) {
+        placedWallsGroup.remove(placedWallsGroup.children[0]);
+      }
+
+      document.getElementById('win-modal').classList.add('hidden');
+
+      updatePlayerPositions3D(false);
+      updateUI();
+      setMode('move');
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    // Bucle de Renderizado
+    function animate(time) {
+      requestAnimationFrame(animate);
+      TWEEN.update(time);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.onload = () => {
+      init3D();
+      animate();
+    };
   </script>
 </body>
 </html>
